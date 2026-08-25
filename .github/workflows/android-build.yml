@@ -18,12 +18,28 @@ on:
         required: false
         type: string
         default: .
+      artifact-name:
+        description: Optional artifact name. Leave empty to skip upload.
+        required: false
+        type: string
+        default: ''
+      artifact-path:
+        description: Artifact path relative to repository root.
+        required: false
+        type: string
+        default: ''
+      setup-android:
+        description: Install/configure Android SDK before running Gradle.
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,11 +49,26 @@ jobs:
         with:
           distribution: temurin
           java-version: ${{ inputs.java-version }}
-          cache: gradle
+
+      - name: Set up Android SDK
+        if: inputs.setup-android
+        uses: android-actions/setup-android@v3
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Grant Gradle wrapper permission
+        working-directory: ${{ inputs.working-directory }}
+        run: chmod +x gradlew
+
       - name: Build
         working-directory: ${{ inputs.working-directory }}
-        run: ./gradlew ${{ inputs.gradle-task }}
+        run: ./gradlew --no-daemon ${{ inputs.gradle-task }}
+
+      - name: Upload build artifact
+        if: inputs.artifact-name != '' && inputs.artifact-path != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ${{ inputs.artifact-path }}
+          if-no-files-found: error
