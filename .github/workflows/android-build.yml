@@ -33,6 +33,16 @@ on:
         required: false
         type: boolean
         default: true
+      use-wrapper:
+        description: Use ./gradlew when the repository already contains a Gradle wrapper.
+        required: false
+        type: boolean
+        default: true
+      gradle-version:
+        description: Standalone Gradle version used only when use-wrapper is false.
+        required: false
+        type: string
+        default: '8.10.2'
 
 jobs:
   build:
@@ -54,16 +64,30 @@ jobs:
         if: inputs.setup-android
         uses: android-actions/setup-android@v3
 
-      - name: Set up Gradle
+      - name: Set up Gradle wrapper cache
+        if: inputs.use-wrapper
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Set up standalone Gradle
+        if: ${{ !inputs.use-wrapper }}
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: ${{ inputs.gradle-version }}
+
       - name: Grant Gradle wrapper permission
+        if: inputs.use-wrapper
         working-directory: ${{ inputs.working-directory }}
         run: chmod +x gradlew
 
-      - name: Build
+      - name: Build with wrapper
+        if: inputs.use-wrapper
         working-directory: ${{ inputs.working-directory }}
         run: ./gradlew --no-daemon ${{ inputs.gradle-task }}
+
+      - name: Build with standalone Gradle
+        if: ${{ !inputs.use-wrapper }}
+        working-directory: ${{ inputs.working-directory }}
+        run: gradle --no-daemon ${{ inputs.gradle-task }}
 
       - name: Upload build artifact
         if: inputs.artifact-name != '' && inputs.artifact-path != ''
